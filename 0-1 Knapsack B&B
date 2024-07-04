@@ -1,0 +1,128 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct {
+    int weight;
+    int value;
+} Item;
+
+typedef struct Node {
+    int level;
+    int profit;
+    int weight;
+    float bound;
+} Node;
+
+int cmp(const void *a, const void *b) {
+    float r1 = ((Item *)a)->value / (float)((Item *)a)->weight;
+    float r2 = ((Item *)b)->value / (float)((Item *)b)->weight;
+    return r1 < r2 ? 1 : -1;
+}
+
+float bound(Node u, int n, int W, Item arr[]) {
+    if (u.weight >= W)
+        return 0;
+    float profit_bound = u.profit;
+    int j = u.level + 1;
+    int totweight = u.weight;
+
+    while ((j < n) && (totweight + arr[j].weight <= W)) {
+        totweight += arr[j].weight;
+        profit_bound += arr[j].value;
+        j++;
+    }
+
+    if (j < n)
+        profit_bound += (W - totweight) * arr[j].value / (float)arr[j].weight;
+
+    return profit_bound;
+}
+
+void enqueue(Node **queue, int *rear, Node element, int *capacity) {
+    if (*rear == *capacity) {
+        *capacity *= 2;
+        *queue = (Node *)realloc(*queue, (*capacity) * sizeof(Node));
+        if (*queue == NULL) {
+            printf("Memory allocation failed\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+    (*queue)[(*rear)++] = element;
+}
+
+int knapsack(int W, Item arr[], int n) {
+    qsort(arr, n, sizeof(Item), cmp);
+
+    int capacity = 2 * n;
+    Node *Q = (Node *)malloc(capacity * sizeof(Node));
+    if (Q == NULL) {
+        printf("Memory allocation failed\n");
+        return -1;
+    }
+    int front = 0, rear = 0;
+
+    Node u, v;
+    u.level = -1;
+    u.profit = 0;
+    u.weight = 0;
+    u.bound = bound(u, n, W, arr);
+    enqueue(&Q, &rear, u, &capacity);
+
+    int maxProfit = 0;
+
+    while (front != rear) {
+        u = Q[front++];
+
+        if (u.bound > maxProfit) {
+            v.level = u.level + 1;
+
+            if (v.level < n) {
+                v.weight = u.weight + arr[v.level].weight;
+                v.profit = u.profit + arr[v.level].value;
+
+                if (v.weight <= W && v.profit > maxProfit)
+                    maxProfit = v.profit;
+
+                v.bound = bound(v, n, W, arr);
+                if (v.bound > maxProfit)
+                    enqueue(&Q, &rear, v, &capacity);
+
+                v.weight = u.weight;
+                v.profit = u.profit;
+                v.bound = bound(v, n, W, arr);
+                if (v.bound > maxProfit)
+                    enqueue(&Q, &rear, v, &capacity);
+            }
+        }
+    }
+
+    free(Q);
+
+    return maxProfit;
+}
+
+int main() {
+    int W, n;
+
+    printf("Enter the capacity of the knapsack: ");
+    scanf("%d", &W);
+
+    printf("Enter the number of items: ");
+    scanf("%d", &n);
+
+    Item *arr = (Item *)malloc(n * sizeof(Item));
+    if (arr == NULL) {
+        printf("Memory allocation failed\n");
+        return -1;
+    }
+
+    for (int i = 0; i < n; i++) {
+        printf("Enter weight and value of item %d: ", i + 1);
+        scanf("%d %d", &arr[i].weight, &arr[i].value);
+    }
+
+    printf("Maximum profit is %d\n", knapsack(W, arr, n));
+
+    free(arr);
+    return 0;
+}
